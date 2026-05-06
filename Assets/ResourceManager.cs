@@ -29,6 +29,21 @@ public class ResourceManager : MonoBehaviour
     public int popularityDollarValue = 25;
     public int credibilityDollarValue = 20;
 
+    [Header("Cooldown Settings")]
+    public float adsCooldown = 5f;
+    public float rallyCooldown = 10f;
+    public float prCooldown = 12f;
+    public float fundraisingDinnerCooldown = 15f;
+    public float riskyDonationCooldown = 20f;
+
+    private float nextAdsTime = 0f;
+    private float nextRallyTime = 0f;
+    private float nextPRTime = 0f;
+    private float nextFundraisingDinnerTime = 0f;
+    private float nextRiskyDonationTime = 0f;
+
+[Header("Cooldown UI")]
+public TMP_Text cooldownText;
     [Header("Route Bonuses and Penalties")]
     public float fundraisingBonus = 0f;
     public float prBonus = 0f;
@@ -45,9 +60,33 @@ public class ResourceManager : MonoBehaviour
         ShowFeedback("Choose a campaign action.");
         ShowROI("ROI: No action taken yet.");
     }
+    private bool IsOnCooldown(float nextAvailableTime, string actionName)
+    {
+        if (Time.time < nextAvailableTime)
+        {
+            float remainingTime = nextAvailableTime - Time.time;
+            ShowFeedback(actionName + " is on cooldown. Wait " + remainingTime.ToString("F1") + " seconds.");
+            ShowCooldown(actionName + " cooldown: " + remainingTime.ToString("F1") + "s");
+            return true;
+        }
 
+        return false;
+    }
+
+    private void ShowCooldown(string message)
+    {
+        if (cooldownText != null)
+        {
+            cooldownText.text = message;
+        }
+    }
     public void BuyAds()
     {
+        if (IsOnCooldown(nextAdsTime, "Ads"))
+        {
+            return;
+        }
+
         int finalPopularityGain = 5;
 
         if (adsPenalty > 0f)
@@ -66,12 +105,19 @@ public class ResourceManager : MonoBehaviour
         if (actionWorked)
         {
             adsBought++;
+            nextAdsTime = Time.time + adsCooldown;
+            ShowCooldown("Ads are now on cooldown for " + adsCooldown + "s.");
             UpdateUI();
         }
     }
 
     public void HoldRally()
     {
+        if (IsOnCooldown(nextRallyTime, "Rally"))
+        {
+            return;
+        }
+
         int finalPopularityGain = 8;
 
         if (rallyBonus > 0f)
@@ -90,12 +136,19 @@ public class ResourceManager : MonoBehaviour
         if (actionWorked)
         {
             ralliesHeld++;
+            nextRallyTime = Time.time + rallyCooldown;
+            ShowCooldown("Rally is now on cooldown for " + rallyCooldown + "s.");
             UpdateUI();
         }
     }
 
     public void RunPRCampaign()
     {
+        if (IsOnCooldown(nextPRTime, "PR Campaign"))
+        {
+            return;
+        }
+
         int finalCredibilityGain = 10;
 
         if (prBonus > 0f)
@@ -114,6 +167,8 @@ public class ResourceManager : MonoBehaviour
         if (actionWorked)
         {
             prCampaignsRun++;
+            nextPRTime = Time.time + prCooldown;
+            ShowCooldown("PR Campaign is now on cooldown for " + prCooldown + "s.");
             UpdateUI();
         }
     }
