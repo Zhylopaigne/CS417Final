@@ -146,7 +146,7 @@ public class ResourceManager : MonoBehaviour
 
         ClampStats();
         UpdateUI();
-
+        TryRandomDonorDonation();
         return true;
     }
 
@@ -266,25 +266,105 @@ public class ResourceManager : MonoBehaviour
     }
 
     public void FundraisingDinner()
+{
+    int dinnerCost = 100;
+
+    if (campaignFunds < dinnerCost)
     {
-        GainFunds(200);
-        IncreasePopularity(2);
-        ShowROI("ROI: Fundraising dinner increased funds and slightly improved popularity.");
+        ShowFeedback("Not enough funds to host a fundraising dinner.");
+        ShowROI("ROI: Fundraising dinner failed because you could not afford it.");
+        return;
     }
 
+    campaignFunds -= dinnerCost;
+
+    int randomEvent = Random.Range(0, 100);
+
+    if (randomEvent < 20)
+    {
+        // Bad dinner outcome
+        int fundsGained = 50;
+        campaignFunds += fundsGained;
+
+        popularity -= 3;
+        credibility -= 2;
+
+        float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
+
+        ClampStats();
+        UpdateUI();
+
+        ShowFeedback("Bad dinner! You spent $100, only raised $50, Popularity -3, Credibility -2.");
+        ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+    }
+    else
+    {
+        // Successful dinner outcome
+        int fundsGained = 250;
+
+        if (fundraisingBonus > 0f)
+        {
+            fundsGained = Mathf.RoundToInt(fundsGained * (1f + fundraisingBonus));
+        }
+
+        campaignFunds += fundsGained;
+
+        popularity -= 2;
+        credibility += 1;
+
+        float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
+
+        ClampStats();
+        UpdateUI();
+
+        ShowFeedback("Dinner succeeded! You spent $100, raised $" + fundsGained + ", Popularity -2, Credibility +1.");
+        ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+    }
+}
     public void DonorDonation()
-    {
-        GainFunds(150);
-        ShowROI("ROI: Donation gained campaign funds without spending money.");
-    }
+{
+    GainFunds(150);
+    ShowROI("ROI: Donation gained campaign funds without spending money.");
+}
+    private void TryRandomDonorDonation()
+{
+    int donationChance = Random.Range(0, 100);
 
-    public void CampaignScandal()
+    if (donationChance < 10)
     {
-        LoseFunds(100);
-        DecreasePopularity(8);
-        DecreaseCredibility(5);
-        ShowROI("ROI: Scandal caused a negative campaign return.");
+        DonorDonation();
     }
+}
+
+    public void AcceptRiskyDonation()
+{
+    int donationAmount = 300;
+    campaignFunds += donationAmount;
+
+    int scandalChance = Random.Range(0, 100);
+
+    if (scandalChance < 30)
+    {
+        popularity -= 8;
+        credibility -= 5;
+
+        ClampStats();
+        UpdateUI();
+
+        ShowFeedback("You accepted a risky donation and got $300, but a scandal broke out! Popularity -8, Credibility -5.");
+        ShowROI("ROI: Risky donation gave funds, but damaged your campaign image.");
+    }
+    else
+    {
+        popularity += 2;
+
+        ClampStats();
+        UpdateUI();
+
+        ShowFeedback("You accepted a risky donation and gained $300. No scandal was discovered.");
+        ShowROI("ROI: Risky donation was successful, but it carried political risk.");
+    }
+}
 
     private void UpdateUI()
     {
