@@ -41,8 +41,8 @@ public class ScenarioManager : MonoBehaviour
 
     private void Start()
     {
-        if (scenarioPanel != null)
-            scenarioPanel.SetActive(false);
+        // if (scenarioPanel != null)
+        //     scenarioPanel.SetActive(false);
     }
 
     public void ShowRandomScenario()
@@ -99,7 +99,9 @@ public class ScenarioManager : MonoBehaviour
         foreach (Button button in choiceButtons)
             button.interactable = false;
 
-        Invoke(nameof(CloseScenario), 2.5f);
+        if (timelineManager != null)
+            timelineManager.AdvanceDay();
+
     }
 
     private void CloseScenario()
