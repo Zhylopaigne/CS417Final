@@ -1,3 +1,8 @@
-Updating for Alpha Design
-
-CS 417 Project
+console.log("========================================");
+console.log("   CS 417 PROJECT — ALPHA DESIGN UPDATE");
+console.log("========================================");
+console.log("Status      : Updating Alpha Design");
+console.log("Module      : UI / Gameplay Prototype");
+console.log("Build Phase : Development");
+console.log("Timestamp   :", new Date().toLocaleString());
+console.log("========================================");

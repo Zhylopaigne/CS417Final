@@ -30,8 +30,11 @@ public class CampaignTimelineManager : MonoBehaviour
 
         if (endPanel != null)
             endPanel.SetActive(false);
-    }
 
+        // Start first campaign event immediately
+        StartNextScenario();
+    }
+    
     public void StartNextScenario()
     {
         if (gameEnded)
