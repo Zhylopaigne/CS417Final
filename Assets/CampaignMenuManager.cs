@@ -44,6 +44,8 @@ public class CampaignMenuManager : MonoBehaviour
 
         if (resourceManager != null)
         {
+            resourceManager.selectedRoute = "Fundraising";
+
             resourceManager.GainFunds(400);
             resourceManager.DecreasePopularity(5);
             resourceManager.DecreaseCredibility(3);
@@ -72,6 +74,8 @@ public class CampaignMenuManager : MonoBehaviour
 
         if (resourceManager != null)
         {
+            resourceManager.selectedRoute = "Media Outreach";
+
             resourceManager.LoseFunds(150);
             resourceManager.IncreasePopularity(10);
             resourceManager.IncreaseCredibility(6);
@@ -98,8 +102,11 @@ public class CampaignMenuManager : MonoBehaviour
         currentRoute = "Voter Engagement";
         routeChosen = true;
 
+        
         if (resourceManager != null)
         {
+            resourceManager.selectedRoute = "Voter Engagement";
+
             resourceManager.LoseFunds(100);
             resourceManager.IncreasePopularity(8);
             resourceManager.IncreaseCredibility(4);

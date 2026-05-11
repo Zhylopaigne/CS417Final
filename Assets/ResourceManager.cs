@@ -4,9 +4,14 @@ using UnityEngine;
 public class ResourceManager : MonoBehaviour
 {
     [Header("Campaign Resources")]
-    public int campaignFunds = 1000;
+    public int campaignFunds = 2000;
     public int popularity = 50;
     public int credibility = 50;
+
+    [Header("Voter Group Support")]
+    public int youthSupport = 50;
+    public int workingClassSupport = 50;
+    public int corporateSupport = 50;
 
     [Header("UI Text")]
     public TMP_Text fundsText;
@@ -14,6 +19,14 @@ public class ResourceManager : MonoBehaviour
     public TMP_Text credibilityText;
     public TMP_Text feedbackText;
     public TMP_Text roiText;
+
+    [Header("Voter UI Text")]
+    public TMP_Text globalApprovalText;
+    public TMP_Text youthSupportText;
+    public TMP_Text workingClassSupportText;
+    public TMP_Text corporateSupportText;
+    public TMP_Text voterFeedbackText;
+
 
     [Header("Action Count UI")]
     public TMP_Text adsCountText;
@@ -42,24 +55,37 @@ public class ResourceManager : MonoBehaviour
     private float nextFundraisingDinnerTime = 0f;
     private float nextRiskyDonationTime = 0f;
 
-[Header("Cooldown UI")]
-public TMP_Text cooldownText;
+    [Header("Cooldown UI")]
+    public TMP_Text cooldownText;
+
     [Header("Route Bonuses and Penalties")]
     public float fundraisingBonus = 0f;
     public float prBonus = 0f;
     public float rallyBonus = 0f;
     public float adsPenalty = 0f;
+    [Header("Current Route")]
+    public string selectedRoute = "None";
 
     private int adsBought = 0;
     private int ralliesHeld = 0;
     private int prCampaignsRun = 0;
+
+    [Header("Secret Unlocks")]
+    public TMP_Text secretText;
+
+    private bool secretEndorsementUnlocked = false;
+    private bool grassrootsMovementUnlocked = false;
+    private bool corporateBackerUnlocked = false;
+    private bool viralMomentUnlocked = false;
 
     void Start()
     {
         UpdateUI();
         ShowFeedback("Choose a campaign action.");
         ShowROI("ROI: No action taken yet.");
+        ShowVoterFeedback("Voter groups are waiting for your campaign decisions.");
     }
+
     private bool IsOnCooldown(float nextAvailableTime, string actionName)
     {
         if (Time.time < nextAvailableTime)
@@ -172,7 +198,7 @@ public TMP_Text cooldownText;
             UpdateUI();
         }
     }
-
+    
     private bool TryCampaignAction(string actionName, int cost, int popularityGain, int credibilityGain, int fundsGain)
     {
         if (campaignFunds < cost)
@@ -199,9 +225,11 @@ public TMP_Text cooldownText;
             ApplyNormalOutcome(actionName, cost, popularityGain, credibilityGain, fundsGain);
         }
 
+        ApplyRoutePassiveEffect(actionName);
         ClampStats();
         UpdateUI();
         TryRandomDonorDonation();
+        CheckSecretUnlocks();
         return true;
     }
 
@@ -211,10 +239,10 @@ public TMP_Text cooldownText;
         credibility += credibilityGain;
         campaignFunds += fundsGain;
 
-        float roi = CalculateROI(cost, popularityGain, credibilityGain, fundsGain);
+        ApplyVoterGroupResponse(actionName, 1f);
 
         ShowFeedback(actionName + " worked as expected.");
-        ShowROI("ROI from " + actionName + ": " + roi.ToString("F1") + "%");
+        ShowROIDetails(actionName, cost, popularityGain, credibilityGain, fundsGain);
     }
 
     private void ApplyGreatOutcome(string actionName, int cost, int popularityGain, int credibilityGain, int fundsGain)
@@ -227,10 +255,10 @@ public TMP_Text cooldownText;
         credibility += bonusCredibility;
         campaignFunds += bonusFunds;
 
-        float roi = CalculateROI(cost, bonusPopularity, bonusCredibility, bonusFunds);
+        ApplyVoterGroupResponse(actionName, 1.5f);
 
         ShowFeedback("Great result! " + actionName + " was more successful than expected.");
-        ShowROI("ROI from " + actionName + ": " + roi.ToString("F1") + "%");
+        ShowROIDetails(actionName, cost, bonusPopularity, bonusCredibility, bonusFunds);
     }
 
     private void ApplyBadOutcome(string actionName, int cost)
@@ -241,25 +269,53 @@ public TMP_Text cooldownText;
         popularity -= popularityLoss;
         credibility -= credibilityLoss;
 
-        float roi = CalculateROI(cost, -popularityLoss, -credibilityLoss, 0);
+        ApplyVoterGroupResponse(actionName, -1f);
 
         ShowFeedback("Bad result! " + actionName + " received negative media attention.");
-        ShowROI("ROI from " + actionName + ": " + roi.ToString("F1") + "%");
+        ShowROIDetails(actionName, cost, -popularityLoss, -credibilityLoss, 0);
+    }
+
+    
+    private string FormatChange(int amount)
+    {
+        if (amount > 0)
+        {
+            return "+" + amount;
+        }
+
+        return amount.ToString();
     }
 
     private float CalculateROI(int cost, int popularityChange, int credibilityChange, int fundsGain)
     {
-        int benefitValue = 0;
-
-        benefitValue += popularityChange * popularityDollarValue;
-        benefitValue += credibilityChange * credibilityDollarValue;
-        benefitValue += fundsGain;
-
+        int benefitValue = CalculateBenefitValue(popularityChange, credibilityChange, fundsGain);
         float roi = ((float)(benefitValue - cost) / cost) * 100f;
-
         return roi;
     }
 
+    private int CalculateBenefitValue(int popularityChange, int credibilityChange, int fundsGain)
+    {
+        int benefitValue = 0;
+        benefitValue += popularityChange * popularityDollarValue;
+        benefitValue += credibilityChange * credibilityDollarValue;
+        benefitValue += fundsGain;
+        return benefitValue;
+    }
+    private void ShowROIDetails(string actionName, int cost, int popularityChange, int credibilityChange, int fundsGain)
+    {
+        int benefitValue = CalculateBenefitValue(popularityChange, credibilityChange, fundsGain);
+        int netValue = benefitValue - cost;
+        float roi = ((float)netValue / cost) * 100f;
+
+        string netText = netValue >= 0 ? "+$" + netValue : "-$" + Mathf.Abs(netValue);
+
+        ShowROI(
+            actionName + " ROI: " + roi.ToString("F1") + "%\n" +
+            "Net Value: " + netText + "\n" +
+            "Impact: Popularity " + FormatChange(popularityChange) +
+            ", Credibility " + FormatChange(credibilityChange)
+        );
+    }
     public void GainFunds(int amount)
     {
         int finalAmount = amount;
@@ -321,108 +377,156 @@ public TMP_Text cooldownText;
     }
 
     public void FundraisingDinner()
-{
-    int dinnerCost = 100;
-
-    if (campaignFunds < dinnerCost)
     {
-        ShowFeedback("Not enough funds to host a fundraising dinner.");
-        ShowROI("ROI: Fundraising dinner failed because you could not afford it.");
-        return;
-    }
+        if (IsOnCooldown(nextFundraisingDinnerTime, "Fundraising Dinner"))
+        {
+            return;
+        }
+
+        int dinnerCost = 100;
+
+        if (campaignFunds < dinnerCost)
+        {
+            ShowFeedback("Not enough funds to host a fundraising dinner.");
+            ShowROI("ROI: Fundraising dinner failed because you could not afford it.");
+            return;
+        }
 
     campaignFunds -= dinnerCost;
 
-    int randomEvent = Random.Range(0, 100);
+        int randomEvent = Random.Range(0, 100);
 
-    if (randomEvent < 20)
+        if (randomEvent < 20)
+        {
+            int fundsGained = 50;
+            campaignFunds += fundsGained;
+
+            popularity -= 3;
+            credibility -= 2;
+
+            youthSupport -= 5;
+            workingClassSupport -= 4;
+            corporateSupport -= 3;
+
+            float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowFeedback("Bad dinner! You spent $100, only raised $50, Popularity -3, Credibility -2.");
+            ShowVoterFeedback("Voter reaction: Youth -5, Working Class -4, Corporate -3.");
+            ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+        }
+        else
+        {
+            int fundsGained = 250;
+
+            if (fundraisingBonus > 0f)
+            {
+                fundsGained = Mathf.RoundToInt(fundsGained * (1f + fundraisingBonus));
+            }
+
+            campaignFunds += fundsGained;
+
+            popularity -= 2;
+            credibility += 1;
+
+            youthSupport -= 3;
+            workingClassSupport -= 2;
+            corporateSupport += 6;
+
+            float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowFeedback("Dinner succeeded! You spent $100, raised $" + fundsGained + ", Popularity -2, Credibility +1.");
+            ShowVoterFeedback("Voter reaction: Youth -3, Working Class -2, Corporate +6.");
+            ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+        }
+        CheckSecretUnlocks();
+        nextFundraisingDinnerTime = Time.time + fundraisingDinnerCooldown;
+    }
+
+    public void DonorDonation()
     {
-        // Bad dinner outcome
-        int fundsGained = 50;
-        campaignFunds += fundsGained;
-
-        popularity -= 3;
-        credibility -= 2;
-
-        float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
-
+        GainFunds(150);
+        corporateSupport += 2;
         ClampStats();
         UpdateUI();
 
-        ShowFeedback("Bad dinner! You spent $100, only raised $50, Popularity -3, Credibility -2.");
-        ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+        ShowVoterFeedback("A donor helped your campaign. Corporate support +2.");
+        ShowROI("ROI: Donation gained campaign funds without direct spending.");
     }
-    else
+
+    private void TryRandomDonorDonation()
     {
-        // Successful dinner outcome
-        int fundsGained = 250;
+        int donationChance = 15;
 
         if (fundraisingBonus > 0f)
         {
-            fundsGained = Mathf.RoundToInt(fundsGained * (1f + fundraisingBonus));
+            donationChance = 25;
         }
 
-        campaignFunds += fundsGained;
+        int randomRoll = Random.Range(0, 100);
 
-        popularity -= 2;
-        credibility += 1;
-
-        float roi = ((float)(fundsGained - dinnerCost) / dinnerCost) * 100f;
-
-        ClampStats();
-        UpdateUI();
-
-        ShowFeedback("Dinner succeeded! You spent $100, raised $" + fundsGained + ", Popularity -2, Credibility +1.");
-        ShowROI("ROI from Fundraising Dinner: " + roi.ToString("F1") + "%");
+        if (randomRoll < donationChance)
+        {
+            DonorDonation();
+        }
     }
-}
-    public void DonorDonation()
-{
-    GainFunds(150);
-    ShowROI("ROI: Donation gained campaign funds without spending money.");
-}
-    private void TryRandomDonorDonation()
-{
-    int donationChance = Random.Range(0, 100);
-
-    if (donationChance < 10)
-    {
-        DonorDonation();
-    }
-}
 
     public void AcceptRiskyDonation()
-{
-    int donationAmount = 300;
-    campaignFunds += donationAmount;
-
-    int scandalChance = Random.Range(0, 100);
-
-    if (scandalChance < 30)
     {
-        popularity -= 8;
-        credibility -= 5;
+        if (IsOnCooldown(nextRiskyDonationTime, "Risky Donation"))
+        {
+            return;
+        }
 
-        ClampStats();
-        UpdateUI();
+        int donationAmount = 300;
+        campaignFunds += donationAmount;
 
-        ShowFeedback("You accepted a risky donation and got $300, but a scandal broke out! Popularity -8, Credibility -5.");
-        ShowROI("ROI: Risky donation gave funds, but damaged your campaign image.");
+        int scandalChance = Random.Range(0, 100);
+
+        if (scandalChance < 30)
+        {
+            popularity -= 8;
+            credibility -= 5;
+
+            youthSupport -= 8;
+            workingClassSupport -= 6;
+            corporateSupport -= 4;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowFeedback("You accepted a risky donation and got $300, but a scandal broke out! Popularity -8, Credibility -5.");
+            ShowVoterFeedback("Scandal reaction: Youth -8, Working Class -6, Corporate -4.");
+            ShowROI("ROI: Risky donation gave funds, but damaged your campaign image.");
+        }
+        else
+        {
+            popularity += 2;
+
+            youthSupport -= 1;
+            workingClassSupport -= 1;
+            corporateSupport += 5;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowFeedback("You accepted a risky donation and gained $300. No scandal was discovered.");
+            ShowVoterFeedback("Voter reaction: Youth -1, Working Class -1, Corporate +5.");
+            ShowROI("ROI: Risky donation was successful, but it carried political risk.");
+        }
+        CheckSecretUnlocks();
+        nextRiskyDonationTime = Time.time + riskyDonationCooldown;
     }
-    else
-    {
-        popularity += 2;
-
-        ClampStats();
-        UpdateUI();
-
-        ShowFeedback("You accepted a risky donation and gained $300. No scandal was discovered.");
-        ShowROI("ROI: Risky donation was successful, but it carried political risk.");
-    }
-}
 
     private void UpdateUI()
     {
+        int globalApproval = CalculateGlobalApproval();
+
         if (fundsText != null)
         {
             fundsText.text = "Funds: $" + campaignFunds;
@@ -430,12 +534,40 @@ public TMP_Text cooldownText;
 
         if (popularityText != null)
         {
-            popularityText.text = "Popularity: " + popularity;
+            popularityText.text = "Popularity: " + popularity + "%";
         }
 
         if (credibilityText != null)
         {
-            credibilityText.text = "Credibility: " + credibility;
+            credibilityText.text = "Credibility: " + credibility + "%";
+        }
+
+        if (globalApprovalText != null)
+        {
+            globalApprovalText.text =
+                "Overall Approval: " + globalApproval + "%\n" +
+                MakeTextBar(globalApproval);
+        }
+
+        if (youthSupportText != null)
+        {
+            youthSupportText.text =
+                "Youth Support: " + youthSupport + "%\n" +
+                MakeTextBar(youthSupport);
+        }
+
+        if (workingClassSupportText != null)
+        {
+            workingClassSupportText.text =
+                "Working Class Support: " + workingClassSupport + "%\n" +
+                MakeTextBar(workingClassSupport);
+        }
+
+        if (corporateSupportText != null)
+        {
+            corporateSupportText.text =
+                "Corporate Support: " + corporateSupport + "%\n" +
+                MakeTextBar(corporateSupport);
         }
 
         if (adsCountText != null)
@@ -470,9 +602,222 @@ public TMP_Text cooldownText;
         }
     }
 
+    private void ApplyVoterGroupResponse(string actionName, float multiplier)
+        {
+            int youthChange = 0;
+            int workingChange = 0;
+            int corporateChange = 0;
+
+            if (actionName == "Ads")
+            {
+                youthChange = 4;
+                workingChange = 2;
+                corporateChange = 1;
+            }
+            else if (actionName == "Rally")
+            {
+                youthChange = 6;
+                workingChange = 5;
+                corporateChange = -1;
+            }
+            else if (actionName == "PR Campaign")
+            {
+                youthChange = 1;
+                workingChange = 2;
+                corporateChange = 6;
+            }
+
+            youthChange = Mathf.RoundToInt(youthChange * multiplier);
+            workingChange = Mathf.RoundToInt(workingChange * multiplier);
+            corporateChange = Mathf.RoundToInt(corporateChange * multiplier);
+
+            youthSupport += youthChange;
+            workingClassSupport += workingChange;
+            corporateSupport += corporateChange;
+
+            ClampStats();
+
+            ShowVoterFeedback(
+                actionName + " voter reaction: Youth " + FormatChange(youthChange) +
+                ", Working Class " + FormatChange(workingChange) +
+                ", Corporate " + FormatChange(corporateChange) + "."
+            );
+        }
+
+    private void ShowVoterFeedback(string message)
+    {
+        if (voterFeedbackText != null)
+        {
+            voterFeedbackText.text = message;
+        }
+    }
+
+    private void ApplyRoutePassiveEffect(string actionName)
+        {
+            if (selectedRoute == "Fundraising")
+            {
+                int donationRoll = Random.Range(0, 100);
+
+                if (donationRoll < 30)
+                {
+                    int bonusFunds = 75;
+
+                    campaignFunds += bonusFunds;
+
+                    ShowVoterFeedback("Fundraising route bonus: Donors contributed an extra $" + bonusFunds + ".");
+                }
+                else
+                {
+                    ShowVoterFeedback("Fundraising route active: Donor network is building support.");
+                }
+            }
+            else if (selectedRoute == "Media Outreach")
+            {
+                credibility += 1;
+                corporateSupport += 1;
+
+                ShowVoterFeedback("Media Outreach route bonus: Credibility +1, Corporate Support +1.");
+            }
+            else if (selectedRoute == "Voter Engagement")
+            {
+                youthSupport += 1;
+                workingClassSupport += 1;
+
+                ShowVoterFeedback("Voter Engagement route bonus: Youth Support +1, Working Class Support +1.");
+            }
+
+            ClampStats();
+        }
     private void ClampStats()
     {
         popularity = Mathf.Clamp(popularity, 0, 100);
         credibility = Mathf.Clamp(credibility, 0, 100);
+
+        youthSupport = Mathf.Clamp(youthSupport, 0, 100);
+        workingClassSupport = Mathf.Clamp(workingClassSupport, 0, 100);
+        corporateSupport = Mathf.Clamp(corporateSupport, 0, 100);
+    }
+    private int CalculateGlobalApproval()
+    {
+        return Mathf.RoundToInt((popularity + youthSupport + workingClassSupport + corporateSupport) / 4f);
+    }
+    private string MakeTextBar(int value)
+    {
+        int filledBars = Mathf.RoundToInt(value / 10f);
+        int emptyBars = 10 - filledBars;
+
+        string bar = "[";
+
+        for (int i = 0; i < filledBars; i++)
+        {
+            bar += "|";
+        }
+
+        for (int i = 0; i < emptyBars; i++)
+        {
+            bar += ".";
+        }
+
+        bar += "]";
+
+        return bar;
+    }
+    private void CheckSecretUnlocks()
+    {
+        if (!secretEndorsementUnlocked &&
+            prCampaignsRun >= 4 &&
+            credibility >= 80 &&
+            corporateSupport >= 65)
+        {
+            secretEndorsementUnlocked = true;
+
+            popularity += 5;
+            credibility += 5;
+            corporateSupport += 3;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowSecret(
+                "Secret Unlocked: Major Endorsement!\n" +
+                "Requirement met: 4 PR campaigns, 80 credibility, and 65 corporate support.\n" +
+                "Reward: Popularity +5, Credibility +5, Corporate Support +3."
+            );
+        }
+
+        if (!grassrootsMovementUnlocked &&
+            selectedRoute == "Voter Engagement" &&
+            ralliesHeld >= 5 &&
+            youthSupport >= 75 &&
+            workingClassSupport >= 75)
+        {
+            grassrootsMovementUnlocked = true;
+
+            popularity += 7;
+            youthSupport += 5;
+            workingClassSupport += 5;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowSecret(
+                "Secret Unlocked: Grassroots Movement!\n" +
+                "Requirement met: Voter Engagement route, 5 rallies, 75 youth support, and 75 working class support.\n" +
+                "Reward: Popularity +7, Youth Support +5, Working Class Support +5."
+            );
+        }
+
+        if (!corporateBackerUnlocked &&
+            selectedRoute == "Fundraising" &&
+            corporateSupport >= 80 &&
+            campaignFunds >= 2000 &&
+            popularity >= 45)
+        {
+            corporateBackerUnlocked = true;
+
+            campaignFunds += 500;
+            corporateSupport += 5;
+            popularity -= 3;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowSecret(
+                "Secret Unlocked: Corporate Backer!\n" +
+                "Requirement met: Fundraising route, 80 corporate support, $2000 funds, and at least 45 popularity.\n" +
+                "Reward: Funds +$500, Corporate Support +5, Popularity -3."
+            );
+        }
+
+        if (!viralMomentUnlocked &&
+            adsBought >= 4 &&
+            ralliesHeld >= 2 &&
+            popularity >= 75 &&
+            youthSupport >= 70)
+        {
+            viralMomentUnlocked = true;
+
+            popularity += 6;
+            youthSupport += 6;
+
+            ClampStats();
+            UpdateUI();
+
+            ShowSecret(
+                "Secret Unlocked: Viral Media Moment!\n" +
+                "Requirement met: 4 ads, 2 rallies, 75 popularity, and 70 youth support.\n" +
+                "Reward: Popularity +6, Youth Support +6."
+            );
+        }
+    }
+    private void ShowSecret(string message)
+    {
+        if (secretText != null)
+        {
+            secretText.text = message;
+        }
+
+        ShowFeedback("A secret campaign opportunity was unlocked!");
     }
 }
+
