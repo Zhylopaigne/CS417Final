@@ -15,7 +15,10 @@ public class CampaignMenuManager : MonoBehaviour
     [Header("Route Settings")]
     public string currentRoute = "None";
 
-    private bool routeChosen = false;
+    public bool routeChosen = false;
+
+
+    public SaveLoad saveLoad;
 
     public void RestartCampaign()
     {
@@ -24,6 +27,7 @@ public class CampaignMenuManager : MonoBehaviour
 
     public void QuitGame()
     {
+        saveLoad.Save();
         Application.Quit();
 
 #if UNITY_EDITOR

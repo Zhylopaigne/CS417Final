@@ -66,17 +66,17 @@ public class ResourceManager : MonoBehaviour
     [Header("Current Route")]
     public string selectedRoute = "None";
 
-    private int adsBought = 0;
-    private int ralliesHeld = 0;
-    private int prCampaignsRun = 0;
+    public int adsBought = 0;
+    public int ralliesHeld = 0;
+    public int prCampaignsRun = 0;
 
     [Header("Secret Unlocks")]
     public TMP_Text secretText;
 
-    private bool secretEndorsementUnlocked = false;
-    private bool grassrootsMovementUnlocked = false;
-    private bool corporateBackerUnlocked = false;
-    private bool viralMomentUnlocked = false;
+    public bool secretEndorsementUnlocked = false;
+    public bool grassrootsMovementUnlocked = false;
+    public bool corporateBackerUnlocked = false;
+    public bool viralMomentUnlocked = false;
 
     void Start()
     {
